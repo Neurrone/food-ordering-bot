@@ -142,12 +142,8 @@ impl Bot {
     pub fn add_item(&mut self, chat: MessageChat, user: User, item: String) -> CommandResult {
         match self.active_orders.get_mut(&chat) {
             Some(active_order) => {
-                let overrode_previous_order = active_order.add_item(user, item.clone());
-                if overrode_previous_order {
-                    CommandResult::success(format!("Updated existing order to {}.\nUse /view_order to view the current order and /end_order when done.", item))
-                } else {
-                    CommandResult::success(format!("Added order for {}.\nUse /order <item> or /cancel to update or cancel your order, /view_order to view the current order and /end_order when done.", item))
-                }
+                let _overrode_previous_order = active_order.add_item(user, item.clone());
+                CommandResult::success(format!("{}\nUse /order <item> to update your order and /end_order when done.", active_order))
             }
             None => CommandResult::failure(
                 "There are no orders in progress. To start an order, use /start_order".into(),
