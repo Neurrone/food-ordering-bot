@@ -25,20 +25,30 @@ fn main() {
         // If the received update contains a new message...
         if let UpdateKind::Message(message) = update.kind {
             if let MessageKind::Text { ref data, .. } = message.kind {
-                let res = match command::parse_command(data) {
+                let res = match command::parse_command(
+                    data,
+                    bot.get_active_order_names(message.chat.clone()),
+                ) {
                     Ok(StartOrder(order_name)) => {
                         bot.start_order(message.chat.clone(), order_name).response
                     }
-                    Ok(EndOrder) => bot.end_order(message.chat.clone()).response,
-                    Ok(AddItem(item_name)) => {
-                        bot.add_item(message.chat.clone(), message.from.clone(), item_name)
+                    Ok(EndOrder(order_name)) => {
+                        bot.end_order(message.chat.clone(), &order_name).response
+                    }
+                    Ok(AddItem(order_name, item_name)) => {
+                        bot.add_item(
+                            message.chat.clone(),
+                            message.from.clone(),
+                            &order_name,
+                            item_name,
+                        )
+                        .response
+                    }
+                    Ok(RemoveItem(order_name)) => {
+                        bot.remove_item(message.chat.clone(), message.from.clone(), &order_name)
                             .response
                     }
-                    Ok(RemoveItem) => {
-                        bot.remove_item(message.chat.clone(), message.from.clone())
-                            .response
-                    }
-                    Ok(ViewOrder) => bot.view_order(message.chat.clone()).response,
+                    Ok(ViewOrders) => bot.view_orders(message.chat.clone()).response,
                     Err(error_message) => error_message,
                 };
                 api.spawn(message.text_reply(res));

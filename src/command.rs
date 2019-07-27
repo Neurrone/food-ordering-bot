@@ -2,19 +2,19 @@
 pub enum Command {
     /// starts a new order for this conversation
     StartOrder(String),
-    /// ends the currently active order for the conversation
-    EndOrder,
+    /// ends an order
+    EndOrder(String),
     /// adds an item to the currently active order
-    AddItem(String),
+    AddItem(String, String),
     /// Cancels the currently selected item
-    RemoveItem,
+    RemoveItem(String),
     /// view the current order
-    ViewOrder,
+    ViewOrders,
 }
 
 type ParseResult = std::result::Result<Command, String>;
 
-pub fn parse_command(message: &str) -> ParseResult {
+pub fn parse_command(message: &str, active_orders: Vec<String>) -> ParseResult {
     use Command::*;
     if !message.starts_with("/") {
         return Err("Invalid command".to_string());
@@ -37,20 +37,75 @@ pub fn parse_command(message: &str) -> ParseResult {
                 ))
             }
         }
-        "/end_order" => Ok(EndOrder),
-        "/order" => {
-            if args.len() == 0 {
+        "/end_order" => {
+            if active_orders.len() == 0 {
                 Err(
-                    "Specify the name of the item you wish to order. For example, /order chocolate"
+                    "There are no active orders. Start one by using /start_order <order name>"
                         .into(),
                 )
+            } else if let Some(order_name) = infer_order_name(args, &active_orders) {
+                Ok(EndOrder(order_name))
+            } else if args.len() == 0 {
+                Err("Since there are multiple active orders, Specify the name of the order. For example, /end_order waffles".into())
             } else {
-                Ok(AddItem(args.join(" ")))
+                Err(format!("Order {} not found.", args[0]))
             }
         }
-        "/cancel" => Ok(RemoveItem),
-        "/view_order" => Ok(ViewOrder),
+        "/order" => {
+            if active_orders.len() == 0 {
+                Err(
+                    "There are no active orders. Start one by using /start_order <order name>"
+                        .into(),
+                )
+            } else if active_orders.len() == 1 {
+                if args.len() == 0 {
+                    Err("Specify the name of the item you wish to order. For example, /order chocolate".into())
+                } else if active_orders.contains(&args[0].to_string()) {
+                    let order_name = args[0];
+                    let item = args[1..].join(" ");
+                    Ok(AddItem(order_name.to_string(), item))
+                } else {
+                    Ok(AddItem(active_orders[0].clone(), args.join(" ")))
+                }
+            } else {
+                // multiple active orders
+                if args.len() < 2 {
+                    Err("Specify the order name and item you wish to order. For example, /order waffles chocolate".into())
+                } else if active_orders.contains(&args[0].to_string()) {
+                    let order_name = args[0];
+                    let item = args[1..].join(" ");
+                    Ok(AddItem(order_name.to_string(), item))
+                } else {
+                    Err(format!("Order {} not found. Specify the order name and item you wish to order. For example, /order waffles chocolate", args[0]))
+                }
+            }
+        }
+        "/cancel" => {
+            if active_orders.len() == 0 {
+                Err(
+                    "There are no active orders. Start one by using /start_order <order name>"
+                        .into(),
+                )
+            } else if let Some(order_name) = infer_order_name(args, &active_orders) {
+                Ok(RemoveItem(order_name))
+            } else if args.len() == 0 {
+                Err("Since there are multiple active orders, Specify the name of the order. For example, /cancel waffles".into())
+            } else {
+                Err(format!("Order {} not found.", args[0]))
+            }
+        }
+        "/view_orders" => Ok(ViewOrders),
         _ => Err(format!("Invalid command")),
+    }
+}
+
+fn infer_order_name(args: &[&str], active_orders: &Vec<String>) -> Option<String> {
+    if args.len() == 0 && active_orders.len() == 1 {
+        Some(active_orders[0].clone()) // order name not specified, but can be infered
+    } else if args.len() == 1 && active_orders.contains(&args[0].to_string()) {
+        Some(args[0].to_string()) // the specified order to end exists
+    } else {
+        None
     }
 }
 
@@ -61,54 +116,77 @@ mod tests {
 
     #[test]
     fn parse_unrecognized_command_errors() {
-        assert!(parse_command("/invalid_command").is_err());
+        assert!(parse_command("/invalid_command", vec![]).is_err());
     }
 
     #[test]
     fn parse_start_order() {
         assert_eq!(
-            parse_command("/start_order "),
+            parse_command("/start_order ", vec![]),
             Err("Specify the name of the order. For example, /start_order waffles".into())
         );
         assert_eq!(
-            parse_command("/start_order waffles"),
+            parse_command("/start_order waffles", vec![]),
             Ok(StartOrder("waffles".into()))
         );
         assert_eq!(
-            parse_command("/Start_order WAFFLES "),
-            parse_command("/start_order waffles"),
+            parse_command("/Start_order WAFFLES ", vec![]),
+            parse_command("/start_order waffles", vec![]),
             "whitespace and capitalization are ignored"
         );
         assert_eq!(
-            parse_command("/start_order waffles @food_ordering_bot"),
-            parse_command("/start_order waffles"),
+            parse_command("/start_order waffles @food_ordering_bot", vec![]),
+            parse_command("/start_order waffles", vec![]),
             "@mentions are ignored"
         );
         assert_eq!(
-            parse_command("/start_order mr bean"),
+            parse_command("/start_order mr bean", vec![]),
             Err("Order names must not contain spaces. Try /start_order mr-bean".into())
         );
         assert_eq!(
-            parse_command("/start_order mr-bean"),
+            parse_command("/start_order mr-bean", vec![]),
             Ok(StartOrder("mr-bean".into()))
         );
     }
 
     #[test]
     fn parse_end_order() {
-        assert_eq!(parse_command("/end_order"), Ok(EndOrder));
         assert_eq!(
-            parse_command("/End_order  "),
-            parse_command("/end_order"),
+            parse_command("/end_order", vec![]),
+            Err("There are no active orders. Start one by using /start_order <order name>".into())
+        );
+        assert_eq!(parse_command("/end_order", vec!["waffles".to_string(), "pizza".to_string()]), Err("Since there are multiple active orders, Specify the name of the order. For example, /end_order waffles".into()));
+        assert_eq!(
+            parse_command("/end_order waffles", vec!["waffles".to_string()]),
+            Ok(EndOrder("waffles".to_string()))
+        );
+        assert_eq!(
+            parse_command("/end_order", vec!["waffles".to_string()]),
+            Ok(EndOrder("waffles".to_string()))
+        );
+        assert_eq!(
+            parse_command(
+                "/end_order waffles",
+                vec!["pizza".to_string(), "waffles".to_string()]
+            ),
+            Ok(EndOrder("waffles".to_string()))
+        );
+        assert_eq!(
+            parse_command("/End_order Waffles ", vec!["waffles".to_string()]),
+            parse_command("/end_order waffles", vec!["waffles".to_string()]),
             "whitespace and capitalization are ignored"
         );
         assert_eq!(
-            parse_command("/end_order waffles"),
-            parse_command("/end_order"),
-            "Excess arguments are ignored"
+            parse_command("/end_order Waffles", vec![]),
+            Err("There are no active orders. Start one by using /start_order <order name>".into())
+        );
+        assert_eq!(
+            parse_command("/end_order Waffles", vec!["pizza".to_string()]),
+            Err("Order waffles not found.".into())
         );
     }
 
+    /*
     #[test]
     fn parse_order() {
         assert_eq!(
@@ -128,4 +206,5 @@ mod tests {
             "capitalization is ignored, and multi-word items are allowed"
         );
     }
+    */
 }

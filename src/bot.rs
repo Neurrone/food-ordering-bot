@@ -31,14 +31,8 @@ impl CommandResult {
     }
 }
 
-#[derive(Default)]
-/// Food Ordering Bot implementation logic
-pub struct Bot {
-    active_orders: HashMap<MessageChat, Order>,
-}
-
 /// Represents an active order
-/// Each conversation may only have one active order at a time.
+#[derive(Clone)]
 pub struct Order {
     /// The name of the order, e.g "waffles"
     name: String,
@@ -109,6 +103,86 @@ impl fmt::Display for Order {
     }
 }
 
+/// Active orders for a conversation
+pub struct ConversationOrders {
+    /// active orders for this conversation
+    pub orders: HashMap<String, Order>,
+}
+
+impl ConversationOrders {
+    /// Adds an order for this conversation, returning whether the addition was successful
+    pub fn add_order(&mut self, order_name: String) -> bool {
+        if let Some(_) = self.orders.get(&order_name) {
+            false // the order already exists
+        } else {
+            self.orders.insert(
+                order_name.clone(),
+                Order {
+                    name: order_name.clone(),
+                    items: HashMap::new(),
+                },
+            );
+            true
+        }
+    }
+
+    /// Removes or ends an order for this conversation, returning the removed order
+    pub fn remove_order(&mut self, order_name: &str) -> Option<Order> {
+        self.orders.remove(order_name)
+    }
+
+    /// Adds an item to the specified order, returning the Order that was just updated
+    pub fn add_item(&mut self, order_name: &str, user: User, item: String) -> Option<Order> {
+        match self.orders.get_mut(order_name) {
+            Some(order) => {
+                let _overrode_previous_order = order.add_item(user, item.clone());
+                Some(order.clone())
+            }
+            None => None, // the order we're trying to add an item to does not exist
+        }
+    }
+
+    /// Removes a user's item from the order, returning the item that was just removed
+    pub fn remove_item(&mut self, order_name: &str, user: User) -> Option<Order> {
+        match self.orders.get_mut(order_name) {
+            Some(order) => {
+                if let Some(_item_removed) = order.remove_item(&user) {
+                    Some(self.orders[order_name].clone())
+                } else {
+                    None // the user did not order this
+                }
+            }
+            None => None, // the order we're trying to remove this user's item from doesn't exist
+        }
+    }
+}
+
+impl fmt::Display for ConversationOrders {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.orders.is_empty() {
+            write!(f, "There are no active orders.")
+        } else {
+            let orders_to_display: Vec<String> = self
+                .orders
+                .values()
+                .map(|order| format!("{}", order))
+                .collect();
+            let header = if orders_to_display.len() > 1 {
+                format!("There are {} orders.\n", orders_to_display.len())
+            } else {
+                "".to_string()
+            };
+            write!(f, "{}{}", header, orders_to_display.join("\n\n"))
+        }
+    }
+}
+
+#[derive(Default)]
+/// Food Ordering Bot implementation logic
+pub struct Bot {
+    active_orders: HashMap<MessageChat, ConversationOrders>,
+}
+
 impl Bot {
     pub fn new() -> Self {
         Self {
@@ -117,21 +191,42 @@ impl Bot {
     }
 
     /// Starts an order
-    /// Only one order may be active at a time per conversation
     pub fn start_order(&mut self, chat: MessageChat, order_name: String) -> CommandResult {
-        match self.active_orders.get(&chat) {
-            Some(existing_order) => CommandResult::failure(format!("There is already an order for {} in progress. Use /order <item> to add an item to the existing order.", existing_order.name)),
+        match self.active_orders.get_mut(&chat) {
+            Some(conversation_orders) => {
+                // there are already orders for this conversation
+                if conversation_orders.add_order(order_name.clone()) {
+                    CommandResult::success(format!("Order started for {}.\nUse /order {} <item> to order, /view_orders to view active orders and /end_order {} when done.", order_name, order_name, order_name))
+                } else {
+                    CommandResult::failure(format!(
+                        "There is already an order for {} in progress.",
+                        order_name
+                    ))
+                }
+            }
             None => {
-                self.active_orders.insert(chat, Order { name: order_name.clone(), items: HashMap::new()});
-                CommandResult::success(format!("Order started for {}.\nUse /order <item> to order, /view_order to view the current order and /end_order when done.", order_name))
+                let mut conversation_orders = ConversationOrders {
+                    orders: HashMap::new(),
+                };
+                conversation_orders.add_order(order_name.clone());
+                self.active_orders.insert(chat, conversation_orders);
+                CommandResult::success(format!("Order started for {}.\nUse /order <item> to order, /view_orders to view active orders, /end_order when done, or start another order.", order_name))
             }
         }
     }
 
     /// Terminates an order, if any
-    pub fn end_order(&mut self, chat: MessageChat) -> CommandResult {
-        match self.active_orders.remove(&chat) {
-            Some(completed_order) => CommandResult::success(format!("{}", completed_order)),
+    pub fn end_order(&mut self, chat: MessageChat, order_name: &str) -> CommandResult {
+        match self.active_orders.get_mut(&chat) {
+            Some(conversation_orders) => match conversation_orders.remove_order(order_name) {
+                Some(completed_order) => {
+                    if self.active_orders[&chat].orders.is_empty() {
+                        self.active_orders.remove(&chat);
+                    }
+                    CommandResult::success(format!("{}", completed_order))
+                }
+                None => CommandResult::failure(format!("Order {} not found.", order_name)),
+            },
             None => CommandResult::failure(
                 "There are no orders in progress. To start an order, use /start_order".into(),
             ),
@@ -139,11 +234,22 @@ impl Bot {
     }
 
     /// Adds an item to a running order
-    pub fn add_item(&mut self, chat: MessageChat, user: User, item: String) -> CommandResult {
+    pub fn add_item(
+        &mut self,
+        chat: MessageChat,
+        user: User,
+        order_name: &str,
+        item: String,
+    ) -> CommandResult {
         match self.active_orders.get_mut(&chat) {
-            Some(active_order) => {
-                let _overrode_previous_order = active_order.add_item(user, item.clone());
-                CommandResult::success(format!("{}\nUse /order <item> to update your order and /end_order when done.", active_order))
+            Some(conversation_orders) => {
+                match conversation_orders.add_item(order_name, user, item) {
+                    Some(updated_order) => CommandResult::success(format!(
+                        "{}\nUse /order <item> to update your order and /end_order when done.",
+                        updated_order
+                    )),
+                    None => CommandResult::failure(format!("Order {} not found.", order_name)),
+                }
             }
             None => CommandResult::failure(
                 "There are no orders in progress. To start an order, use /start_order".into(),
@@ -151,24 +257,42 @@ impl Bot {
         }
     }
 
-    /// Cancels the currently selected item for the current order
-    pub fn remove_item(&mut self, chat: MessageChat, user: User) -> CommandResult {
+    /// Cancels the currently selected item for an order
+    pub fn remove_item(
+        &mut self,
+        chat: MessageChat,
+        user: User,
+        order_name: &str,
+    ) -> CommandResult {
         match self.active_orders.get_mut(&chat) {
-            Some(active_order) => {
-                match active_order.remove_item(&user) {
-                    Some(item_removed) => CommandResult::success(format!("Cancelled existing order for {}.\nUse /order <item> to order, /view_order to view the current order and /end_order when done.", item_removed)),
-                    None => CommandResult::failure("You have not placed any orders. Use /order <item> to do so.".into()),
-                }
+            Some(conversation_orders) => match conversation_orders.remove_item(order_name, user) {
+                Some(updated_order) => CommandResult::success(format!(
+                    "{}\nUse /order <item> to order, and /end_order when done.",
+                    updated_order
+                )),
+                None => CommandResult::failure(format!(
+                    "You have either not placed any orders for {}, or order {} does not exist.",
+                    order_name, order_name
+                )),
             },
+            None => CommandResult::failure(
+                "There are no orders in progress. To start an order, use /start_order".into(),
+            ),
+        }
+    }
+
+    /// Views all active orders for the chat
+    pub fn view_orders(&mut self, chat: MessageChat) -> CommandResult {
+        match self.active_orders.get(&chat) {
+            Some(conversation_orders) => CommandResult::success(format!("{}\n\nUse /order <item> to order, /cancel to cancel your order and /end_order when done.", conversation_orders)),
             None => CommandResult::failure("There are no orders in progress. To start an order, use /start_order".into())
         }
     }
 
-    /// Views the current order
-    pub fn view_order(&mut self, chat: MessageChat) -> CommandResult {
+    pub fn get_active_order_names(&self, chat: MessageChat) -> Vec<String> {
         match self.active_orders.get(&chat) {
-            Some(order) => CommandResult::success(format!("{}\n\nUse /order <item> to order, /cancel to cancel your order and /end_order when done.", order)),
-            None => CommandResult::failure("There are no orders in progress. To start an order, use /start_order".into())
+            Some(active_orders) => active_orders.orders.keys().cloned().collect(),
+            None => vec![],
         }
     }
 }
