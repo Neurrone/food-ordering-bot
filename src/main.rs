@@ -27,8 +27,17 @@ fn main() {
             if let MessageKind::Text { ref data, .. } = message.kind {
                 let res = match command::parse_command(
                     data,
-                    bot.get_active_order_names(message.chat.clone()),
+                    &bot.get_active_order_names(message.chat.clone()),
                 ) {
+                    Ok(Start) => "Use /start_order <order name> to start a new order, or /help for a full list of commands.".to_string(),
+                    Ok(Help) => "/start_order <order name> - starts an order. For example, /start_order waffles.
+/view_orders - shows active orders.
+
+The following commands will ask you to specify the order name, if multiple orders are active simultaneously.
+
+/order [order name] <item> - adds an item to an order, or replaces the previously chosen one.
+/cancel [order-name] - removes your previously selected item from an order.
+/end_order [order-name] - stops an order.".to_string(),
                     Ok(StartOrder(order_name)) => {
                         bot.start_order(message.chat.clone(), order_name).response
                     }

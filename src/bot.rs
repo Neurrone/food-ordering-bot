@@ -289,9 +289,9 @@ impl Bot {
         }
     }
 
-    pub fn get_active_order_names(&self, chat: MessageChat) -> Vec<String> {
+    pub fn get_active_order_names(&self, chat: MessageChat) -> Vec<&str> {
         match self.active_orders.get(&chat) {
-            Some(active_orders) => active_orders.orders.keys().cloned().collect(),
+            Some(active_orders) => active_orders.orders.keys().map(|k| k.as_ref()).collect(),
             None => vec![],
         }
     }
