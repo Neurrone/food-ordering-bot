@@ -118,7 +118,7 @@ impl ConversationOrders {
             self.orders.insert(
                 order_name.clone(),
                 Order {
-                    name: order_name.clone(),
+                    name: order_name,
                     items: HashMap::new(),
                 },
             );
@@ -143,10 +143,10 @@ impl ConversationOrders {
     }
 
     /// Removes a user's item from the order, returning the item that was just removed
-    pub fn remove_item(&mut self, order_name: &str, user: User) -> Option<Order> {
+    pub fn remove_item(&mut self, order_name: &str, user: &User) -> Option<Order> {
         match self.orders.get_mut(order_name) {
             Some(order) => {
-                if let Some(_item_removed) = order.remove_item(&user) {
+                if let Some(_item_removed) = order.remove_item(user) {
                     Some(self.orders[order_name].clone())
                 } else {
                     None // the user did not order this
@@ -216,12 +216,12 @@ impl Bot {
     }
 
     /// Terminates an order, if any
-    pub fn end_order(&mut self, chat: MessageChat, order_name: &str) -> CommandResult {
-        match self.active_orders.get_mut(&chat) {
+    pub fn end_order(&mut self, chat: &MessageChat, order_name: &str) -> CommandResult {
+        match self.active_orders.get_mut(chat) {
             Some(conversation_orders) => match conversation_orders.remove_order(order_name) {
                 Some(completed_order) => {
-                    if self.active_orders[&chat].orders.is_empty() {
-                        self.active_orders.remove(&chat);
+                    if self.active_orders[chat].orders.is_empty() {
+                        self.active_orders.remove(chat);
                     }
                     CommandResult::success(format!("{}", completed_order))
                 }
@@ -236,12 +236,12 @@ impl Bot {
     /// Adds an item to a running order
     pub fn add_item(
         &mut self,
-        chat: MessageChat,
+        chat: &MessageChat,
         user: User,
         order_name: &str,
         item: String,
     ) -> CommandResult {
-        match self.active_orders.get_mut(&chat) {
+        match self.active_orders.get_mut(chat) {
             Some(conversation_orders) => {
                 match conversation_orders.add_item(order_name, user, item) {
                     Some(updated_order) => CommandResult::success(format!(
@@ -260,11 +260,11 @@ impl Bot {
     /// Cancels the currently selected item for an order
     pub fn remove_item(
         &mut self,
-        chat: MessageChat,
-        user: User,
+        chat: &MessageChat,
+        user: &User,
         order_name: &str,
     ) -> CommandResult {
-        match self.active_orders.get_mut(&chat) {
+        match self.active_orders.get_mut(chat) {
             Some(conversation_orders) => match conversation_orders.remove_item(order_name, user) {
                 Some(updated_order) => CommandResult::success(format!(
                     "{}\nUse /order <item> to order, and /end_order when done.",
@@ -282,17 +282,21 @@ impl Bot {
     }
 
     /// Views all active orders for the chat
-    pub fn view_orders(&mut self, chat: MessageChat) -> CommandResult {
-        match self.active_orders.get(&chat) {
+    pub fn view_orders(&mut self, chat: &MessageChat) -> CommandResult {
+        match self.active_orders.get(chat) {
             Some(conversation_orders) => CommandResult::success(format!("{}\n\nUse /order <item> to order, /cancel to cancel your order and /end_order when done.", conversation_orders)),
             None => CommandResult::failure("There are no orders in progress. To start an order, use /start_order".into())
         }
     }
 
-    pub fn get_active_order_names(&self, chat: MessageChat) -> Vec<&str> {
-        match self.active_orders.get(&chat) {
+    pub fn get_active_order_names(&self, chat: &MessageChat) -> Vec<&str> {
+        match self.active_orders.get(chat) {
             Some(active_orders) => active_orders.orders.keys().map(|k| k.as_ref()).collect(),
             None => vec![],
         }
+    }
+
+    pub fn has_active_orders(&self) -> bool {
+        !self.active_orders.is_empty()
     }
 }

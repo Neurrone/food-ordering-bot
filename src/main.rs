@@ -25,15 +25,16 @@ fn main() {
         // If the received update contains a new message...
         if let UpdateKind::Message(message) = update.kind {
             if let MessageKind::Text { ref data, .. } = message.kind {
+                let had_active_orders_before = bot.has_active_orders();
                 let res = match command::parse_command(
                     data,
-                    &bot.get_active_order_names(message.chat.clone()),
+                    &bot.get_active_order_names(&message.chat),
                 ) {
                     Ok(Start) => "Use /start_order <order name> to start a new order, or /help for a full list of commands.".to_string(),
                     Ok(Help) => "/start_order <order name> - starts an order. For example, /start_order waffles.
 /view_orders - shows active orders.
 
-The following commands will ask you to specify the order name, if multiple orders are active simultaneously.
+The following commands will ask for the order name, if there are multiple active orders.
 
 /order [order name] <item> - adds an item to an order, or replaces the previously chosen one.
 /cancel [order-name] - removes your previously selected item from an order.
@@ -42,11 +43,11 @@ The following commands will ask you to specify the order name, if multiple order
                         bot.start_order(message.chat.clone(), order_name).response
                     }
                     Ok(EndOrder(order_name)) => {
-                        bot.end_order(message.chat.clone(), &order_name).response
+                        bot.end_order(&message.chat, &order_name).response
                     }
                     Ok(AddItem(order_name, item_name)) => {
                         bot.add_item(
-                            message.chat.clone(),
+                            &message.chat,
                             message.from.clone(),
                             &order_name,
                             item_name,
@@ -54,13 +55,22 @@ The following commands will ask you to specify the order name, if multiple order
                         .response
                     }
                     Ok(RemoveItem(order_name)) => {
-                        bot.remove_item(message.chat.clone(), message.from.clone(), &order_name)
+                        bot.remove_item(&message.chat, &message.from, &order_name)
                             .response
                     }
-                    Ok(ViewOrders) => bot.view_orders(message.chat.clone()).response,
+                    Ok(ViewOrders) => bot.view_orders(&message.chat).response,
                     Err(error_message) => error_message,
                 };
                 api.spawn(message.text_reply(res));
+                let had_active_orders_now = bot.has_active_orders();
+                if had_active_orders_before != had_active_orders_now {
+                    let status = if had_active_orders_now {
+                        "There are now active orders."
+                    } else {
+                        "No active orders."
+                    };
+                    println!("{}", status);
+                }
             }
         }
         Ok(())
