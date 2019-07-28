@@ -38,7 +38,9 @@ The following commands will ask for the order name, if there are multiple active
 
 /order [order name] <item> - adds an item to an order, or replaces the previously chosen one.
 /cancel [order-name] - removes your previously selected item from an order.
-/end_order [order-name] - stops an order.".to_string(),
+/end_order [order-name] - stops an order.
+
+For feature requests, bug reports and source: https://github.com/Neurrone/food-ordering-bot".to_string(),
                     Ok(StartOrder(order_name)) => {
                         bot.start_order(message.chat.clone(), message.from.clone(), order_name).response
                     }
