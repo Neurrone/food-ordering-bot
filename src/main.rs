@@ -40,10 +40,10 @@ The following commands will ask for the order name, if there are multiple active
 /cancel [order-name] - removes your previously selected item from an order.
 /end_order [order-name] - stops an order.".to_string(),
                     Ok(StartOrder(order_name)) => {
-                        bot.start_order(message.chat.clone(), order_name).response
+                        bot.start_order(message.chat.clone(), message.from.clone(), order_name).response
                     }
                     Ok(EndOrder(order_name)) => {
-                        bot.end_order(&message.chat, &order_name).response
+                        bot.end_order(&message.chat, &message.from, &order_name).response
                     }
                     Ok(AddItem(order_name, item_name)) => {
                         bot.add_item(
