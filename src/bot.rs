@@ -85,6 +85,10 @@ impl Order {
 
 impl fmt::Display for Order {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.items.is_empty() {
+            return write!(f, "Orders for {}:\n\nNone", self.name);
+        }
+
         let mut sorted_orders: Vec<String> = self
             .items
             .iter()
@@ -214,8 +218,8 @@ impl Bot {
         order_name: String,
     ) -> CommandResult {
         match self.active_orders.get_mut(&chat) {
+            // there are already orders for this conversation
             Some(conversation_orders) => {
-                // there are already orders for this conversation
                 if conversation_orders.add_order(creater, order_name.clone()) {
                     CommandResult::success(format!("Order started for {}.\nUse /order {} <item> to order, /view_orders to view active orders and /end_order {} when done.", order_name, order_name, order_name))
                 } else {
@@ -268,15 +272,14 @@ impl Bot {
         item: String,
     ) -> CommandResult {
         match self.active_orders.get_mut(chat) {
-            Some(conversation_orders) => {
-                match conversation_orders.add_item(order_name, user, item) {
-                    Some(updated_order) => CommandResult::success(format!(
-                        "{}\nUse /order <item> to update your order and /end_order when done.",
-                        updated_order
-                    )),
-                    None => CommandResult::failure(format!("Order {} not found.", order_name)),
-                }
-            }
+            Some(conversation_orders) => match conversation_orders.add_item(order_name, user, item)
+            {
+                Some(updated_order) => CommandResult::success(format!(
+                    "{}\nUse /order <item> to update your order and /end_order when done.",
+                    updated_order
+                )),
+                None => CommandResult::failure(format!("Order {} not found.", order_name)),
+            },
             None => CommandResult::failure(
                 "There are no orders in progress. To start an order, use /start_order".into(),
             ),
