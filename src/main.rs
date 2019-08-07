@@ -21,7 +21,19 @@ fn main() {
     let mut bot = bot::Bot::new();
 
     // Fetch new updates via long poll method
-    let future = api.stream().for_each(|update| {
+    let future = api.stream()
+    .inspect_err(|err| eprintln!("{:?}", err))
+    // map Err to Ok variant
+    // this is terrible, but I'm resorting to this to prevent errors from crashing the bot
+    // TODO: figure out if there's a better way of preventing errors from panicking
+    .then(|r| {
+        match r {
+            Ok(_) => r,
+            // it doesn't matter if we use an id of 1, since nothing uses it. This is terrible though :(
+            Err(e) => Ok(Update { id: 1, kind: UpdateKind::Error(e.description().to_string())})
+        }
+    })
+    .for_each(|update| {
         // If the received update contains a new message...
         if let UpdateKind::Message(message) = update.kind {
             if let MessageKind::Text { ref data, .. } = message.kind {
@@ -78,5 +90,6 @@ For feature requests, bug reports and source: https://github.com/Neurrone/food-o
         Ok(())
     });
 
+    // this should never panick, since we prevent the stream's future from returning an error
     core.run(future).unwrap();
 }
