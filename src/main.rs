@@ -5,6 +5,8 @@ extern crate tokio_core;
 
 mod bot;
 mod command;
+mod conversation_orders;
+mod order;
 use command::Command::*;
 
 use std::env;
