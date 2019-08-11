@@ -1,5 +1,8 @@
 use std::{collections::HashMap, fmt, string::String};
-use telegram_bot::types::chat::User;
+use telegram_bot::{
+    types::{chat::User, InlineKeyboardMarkup},
+    InlineKeyboardButton,
+};
 
 use crate::order::Order;
 
@@ -68,6 +71,21 @@ impl ConversationOrders {
             }
             None => None, // the order we're trying to remove this user's item from doesn't exist
         }
+    }
+
+    /// Returns inline keyboard buttons which users can click to order an existing item
+    pub fn generate_reply_markup(&self) -> InlineKeyboardMarkup {
+        let buttons: Vec<InlineKeyboardButton> = self
+            .orders
+            .values()
+            .map(|order| order.generate_inline_buttons())
+            .flatten()
+            .collect();
+        let mut keyboard_markup = InlineKeyboardMarkup::new();
+        for row in buttons.chunks(2) {
+            keyboard_markup.add_row(row.to_vec());
+        }
+        keyboard_markup
     }
 }
 

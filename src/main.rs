@@ -7,8 +7,8 @@ mod bot;
 mod command;
 mod conversation_orders;
 mod order;
+use bot::CommandResult;
 use command::Command::*;
-
 use std::env;
 
 use futures::Stream;
@@ -38,57 +38,82 @@ fn main() {
     })
     .for_each(|update| {
         // If the received update contains a new message...
-        if let UpdateKind::Message(message) = update.kind {
-            if let MessageKind::Text { ref data, .. } = message.kind {
-                let had_active_orders_before = bot.has_active_orders();
-                let res = match command::parse_command(
-                    data,
-                    &bot.get_active_order_names(&message.chat),
-                ) {
-                    Ok(Start) => "Use /start_order <order name> to start a new order, or /help for a full list of commands.".to_string(),
-                    Ok(Help) => "/start_order <order name> - starts an order. For example, /start_order waffles.
-/view_orders - shows active orders.
+        match update.kind {
+            UpdateKind::Message(message) => {
+                if let MessageKind::Text { ref data, .. } = message.kind {
+                    let had_active_orders_before = bot.has_active_orders();
+                    let res = match command::parse_command(
+                        data,
+                        &bot.get_active_order_names(&message.chat),
+                    ) {
+                        Ok(Start) => CommandResult::success("Use /start_order <order name> to start a new order, or /help for a full list of commands.".into()),
+                        Ok(Help) => CommandResult::success("/start_order <order name> - starts an order. For example, /start_order waffles.
+    /view_orders - shows active orders.
 
-The following commands will ask for the order name, if there are multiple active orders.
+    The following commands will ask for the order name, if there are multiple active orders.
 
-/order [order name] <item> - adds an item to an order, or replaces the previously chosen one.
-/cancel [order-name] - removes your previously selected item from an order.
-/end_order [order-name] - stops an order.
+    /order [order name] <item> - adds an item to an order, or replaces the previously chosen one.
+    /cancel [order-name] - removes your previously selected item from an order.
+    /end_order [order-name] - stops an order.
 
-For feature requests, bug reports and source: https://github.com/Neurrone/food-ordering-bot".to_string(),
-                    Ok(StartOrder(order_name)) => {
-                        bot.start_order(message.chat.clone(), message.from.clone(), order_name).response
-                    }
-                    Ok(EndOrder(order_name)) => {
-                        bot.end_order(&message.chat, &message.from, &order_name).response
-                    }
-                    Ok(AddItem(order_name, item_name)) => {
-                        bot.add_item(
-                            &message.chat,
-                            message.from.clone(),
-                            &order_name,
-                            item_name,
-                        )
-                        .response
-                    }
-                    Ok(RemoveItem(order_name)) => {
-                        bot.remove_item(&message.chat, &message.from, &order_name)
-                            .response
-                    }
-                    Ok(ViewOrders) => bot.view_orders(&message.chat).response,
-                    Err(error_message) => error_message,
-                };
-                api.spawn(message.text_reply(res));
-                let had_active_orders_now = bot.has_active_orders();
-                if had_active_orders_before != had_active_orders_now {
-                    let status = if had_active_orders_now {
-                        "There are now active orders."
-                    } else {
-                        "No active orders."
+    For feature requests, bug reports and source: https://github.com/Neurrone/food-ordering-bot".to_string()),
+                        Ok(StartOrder(order_name)) => {
+                            bot.start_order(message.chat.clone(), message.from.clone(), order_name)
+                        }
+                        Ok(EndOrder(order_name)) => {
+                            bot.end_order(&message.chat, &message.from, &order_name)
+                        }
+                        Ok(AddItem(order_name, item_name)) => {
+                            bot.add_item(
+                                &message.chat,
+                                message.from.clone(),
+                                &order_name,
+                                item_name,
+                            )
+                        }
+                        Ok(RemoveItem(order_name)) => {
+                            bot.remove_item(&message.chat, &message.from, &order_name)
+                        }
+                        Ok(ViewOrders) => bot.view_orders(&message.chat),
+                        Err(error_message) => CommandResult::failure(error_message),
                     };
-                    println!("{}", status);
+                    match res.reply_markup {
+                        Some(markup) => api.spawn(
+                            message.text_reply(res.response).reply_markup(markup)),
+                        None => api.spawn(message.text_reply(res.response))
+                    }
+                    let had_active_orders_now = bot.has_active_orders();
+                    if had_active_orders_before != had_active_orders_now {
+                        let status = if had_active_orders_now {
+                            "There are now active orders."
+                        } else {
+                            "No active orders."
+                        };
+                        println!("{}", status);
+                    }
                 }
-            }
+            },
+            UpdateKind::CallbackQuery(query) => {
+                let is_original_command_output_of_view_orders = match query.message.clone().reply_to_message {
+                    Some(m) => if let MessageOrChannelPost::Message(message) = *m {
+                        if let MessageKind::Text { ref data, .. } = message.kind {
+                            data.to_lowercase().trim() == "/view_orders"
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                    None => false
+                };
+                let (res, answer) = bot.handle_callback_query(&query.message.chat, query.from.clone(), &query.data, is_original_command_output_of_view_orders);
+                api.spawn(query.answer(answer));
+                if res.success {
+                    api.spawn(query.message.edit_text(res.response));
+                    api.spawn(query.message.edit_reply_markup(res.reply_markup));
+                }
+            },
+            _ => ()
         }
         Ok(())
     });

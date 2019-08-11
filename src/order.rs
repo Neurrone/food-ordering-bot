@@ -3,7 +3,10 @@ use std::{
     fmt,
     string::String,
 };
-use telegram_bot::types::chat::User;
+use telegram_bot::{
+    types::{chat::User, InlineKeyboardMarkup},
+    InlineKeyboardButton,
+};
 
 /// Represents an active order
 #[derive(Clone)]
@@ -36,6 +39,16 @@ impl Order {
         }
     }
 
+    /// Returns the item a user has ordered, if any
+    pub fn find_user_item(&self, user: &User) -> Option<String> {
+        for (item, users) in self.items.iter() {
+            if users.contains(user) {
+                return Some(item.to_string());
+            }
+        }
+        None
+    }
+
     /// Removes a user's order, returning the item that was removed, if any
     pub fn remove_item(&mut self, user: &User) -> Option<String> {
         for (item, users) in self.items.iter_mut() {
@@ -48,6 +61,26 @@ impl Order {
             }
         }
         None
+    }
+
+    /// Returns inline keyboard buttons which users can click to order an existing item
+    pub fn generate_inline_buttons(&self) -> Vec<InlineKeyboardButton> {
+        let mut items: Vec<&String> = self.items.keys().collect();
+        items.sort();
+        items
+            .iter()
+            .cloned()
+            .map(|item| InlineKeyboardButton::callback(item, format!("{} {}", self.name, item)))
+            .collect()
+    }
+
+    /// Returns inline keyboard buttons which users can click to order an existing item
+    pub fn generate_reply_markup(&self) -> InlineKeyboardMarkup {
+        let mut keyboard_markup = InlineKeyboardMarkup::new();
+        for row in self.generate_inline_buttons().chunks(2) {
+            keyboard_markup.add_row(row.to_vec());
+        }
+        keyboard_markup
     }
 }
 
