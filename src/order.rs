@@ -107,10 +107,12 @@ impl fmt::Display for Order {
             })
             .collect();
         sorted_orders.sort();
+        let total_orders: usize = items_with_orders.iter().map(|(_, users)| users.len()).sum();
+
         write!(
             f,
             "{} orders for {}:\n\n{}",
-            sorted_orders.len(),
+            total_orders,
             self.name,
             sorted_orders.join("\n")
         )
