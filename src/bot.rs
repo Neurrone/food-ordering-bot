@@ -55,6 +55,11 @@ impl Bot {
         creater: User,
         order_name: String,
     ) -> CommandResult {
+        if order_name.len() > 30 {
+            return CommandResult::failure(
+                "Order names must not exceed 30 characters.".to_string(),
+            );
+        }
         match self.active_orders.get_mut(&chat) {
             // there are already orders for this conversation
             Some(conversation_orders) => {
@@ -109,6 +114,11 @@ impl Bot {
         order_name: &str,
         item: String,
     ) -> CommandResult {
+        // ensure that the item name isn't too long so that callback queries are <= 64 bytes, per Telegram limits
+        // callback queries are in the form "<order_name> <item>", so their lengths must not exceed 63
+        if order_name.len() + item.len() > 63 {
+            return CommandResult::failure("The sum of the lengths of order and item names must not exceed 63 characters, per Telegram limits.".to_string());
+        }
         match self.active_orders.get_mut(chat) {
             Some(conversation_orders) => match conversation_orders.add_item(order_name, user, item)
             {
