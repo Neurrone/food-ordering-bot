@@ -108,9 +108,14 @@ fn main() {
                 };
                 let (res, answer) = bot.handle_callback_query(&query.message.chat, query.from.clone(), &query.data, is_original_command_output_of_view_orders);
                 api.spawn(query.answer(answer));
-                if res.success {
-                    api.spawn(query.message.edit_text(res.response));
-                    api.spawn(query.message.edit_reply_markup(res.reply_markup));
+                match res.reply_markup {
+                    Some(ref markup) if res.success => api.spawn(
+                        query.message
+                            .edit_text(res.response)
+                            .reply_markup(ReplyMarkup::InlineKeyboardMarkup(markup.clone()))
+                        ),
+                    None if res.success => api.spawn(query.message.edit_text(res.response)),
+                    _ => () // don't do anything if the command failed
                 }
             },
             _ => ()
