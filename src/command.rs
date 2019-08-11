@@ -18,7 +18,7 @@ type ParseResult = std::result::Result<Command, String>;
 
 pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
     use Command::*;
-    if !message.starts_with("/") {
+    if !message.starts_with('/') {
         return Err("Use /help for supported commands.".to_string());
     }
 
@@ -99,7 +99,7 @@ pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
             }
         }
         "/view_orders" => Ok(ViewOrders),
-        _ => Err(format!("Use /help for a list of recognized commands.")),
+        _ => Err("Use /help for a list of recognized commands.".to_string()),
     }
 }
 

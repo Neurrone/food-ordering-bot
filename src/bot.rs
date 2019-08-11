@@ -118,7 +118,7 @@ pub struct ConversationOrders {
 impl ConversationOrders {
     /// Adds an order for this conversation, returning whether the addition was successful
     pub fn add_order(&mut self, creater: User, order_name: String) -> bool {
-        if let Some(_) = self.orders.get(&order_name) {
+        if self.orders.get(&order_name).is_some() {
             false // the order already exists
         } else {
             self.orders.insert(

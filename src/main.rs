@@ -1,3 +1,4 @@
+#![warn(clippy::all)]
 extern crate futures;
 extern crate telegram_bot;
 extern crate tokio_core;
