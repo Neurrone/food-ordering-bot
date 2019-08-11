@@ -5,6 +5,6 @@ authors = ["Dickson Tan <neurrone@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-telegram-bot = "0.6"
+telegram-bot = "0.6.3"
 tokio-core = "0.1.17"
 futures = "0.1.28"
