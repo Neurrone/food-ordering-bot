@@ -109,7 +109,8 @@ impl fmt::Display for Order {
         sorted_orders.sort();
         write!(
             f,
-            "Orders for {}:\n\n{}",
+            "{} orders for {}:\n\n{}",
+            sorted_orders.len(),
             self.name,
             sorted_orders.join("\n")
         )
