@@ -22,7 +22,10 @@ pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
         return Err("Use /help for supported commands.".to_string());
     }
 
-    let normalized_message = message.to_lowercase().replace("@food_ordering_bot", "");
+    let normalized_message = message
+        .to_lowercase()
+        .trim()
+        .replace("@food_ordering_bot", "");
     let tokens: Vec<&str> = normalized_message.split_whitespace().collect();
     let command = tokens[0];
     let args = &tokens[1..];
