@@ -38,33 +38,33 @@ impl Order {
 
     /// Removes a user's order, returning the item that was removed, if any
     pub fn remove_item(&mut self, user: &User) -> Option<String> {
-        let mut existing_item: Option<String> = None;
         for (item, users) in self.items.iter_mut() {
             if users.remove(user) {
-                existing_item = Some(item.clone());
-                break;
+                // some items may not have any users / orders attached to them after removal
+                // for example, if one person ordered chocolate and then cancelled his order,
+                // we want chocolate to persist in the inline keyboard
+                // hence, we don't remove items with no users associated with them
+                return Some(item.to_string());
             }
         }
-        match existing_item {
-            Some(item) => {
-                if self.items[&item].is_empty() {
-                    self.items.remove(&item);
-                }
-                Some(item)
-            }
-            None => None,
-        }
+        None
     }
 }
 
 impl fmt::Display for Order {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.items.is_empty() {
+        // filter out items which have no users ordering them
+        let items_with_orders: HashMap<&String, &HashSet<User>> = self
+            .items
+            .iter()
+            .filter(|&(_, users)| !users.is_empty())
+            .collect();
+
+        if items_with_orders.is_empty() {
             return write!(f, "Orders for {}:\n\nNone", self.name);
         }
 
-        let mut sorted_orders: Vec<String> = self
-            .items
+        let mut sorted_orders: Vec<String> = items_with_orders
             .iter()
             .map(|(item, users)| {
                 let mut sorted_users: Vec<String> =
