@@ -7,9 +7,11 @@ mod bot;
 mod command;
 mod conversation_orders;
 mod order;
+
 use bot::CommandResult;
 use command::Command::*;
-use std::env;
+
+use std::{env, time::Duration};
 
 use futures::Stream;
 use telegram_bot::*;
@@ -22,13 +24,16 @@ fn main() {
     let api = Api::configure(token).build(core.handle()).unwrap();
 
     let mut bot = bot::Bot::new();
-
     // Fetch new updates via long poll method
-    let future = api.stream()
+    let mut stream = api.stream();
+    let future = stream
+    .allowed_updates(&[AllowedUpdate::Message, AllowedUpdate::CallbackQuery])
+    .error_delay(Duration::from_secs(1))
     .inspect_err(|err| eprintln!("{:?}", err))
     // map Err to Ok variant
     // this is terrible, but I'm resorting to this to prevent errors from crashing the bot
     // TODO: figure out if there's a better way of preventing errors from panicking
+    // see https://github.com/telegram-rs/telegram-bot/issues/130
     .then(|r| {
         match r {
             Ok(_) => r,
