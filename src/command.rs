@@ -36,10 +36,8 @@ pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
             } else if args.is_empty() {
                 Err("Specify the name of the order. For example, /start waffles".into())
             } else {
-                Err(format!(
-                    "Order names must not contain spaces. Try /start {}.",
-                    args.join("-")
-                ))
+                let order_name_with_spaces_replaced = args.join("-");
+                Ok(StartOrder(order_name_with_spaces_replaced))
             }
         }
         "/end" => {
@@ -153,7 +151,8 @@ mod tests {
         );
         assert_eq!(
             parse_command("/start ice cream", NO_ORDERS),
-            Err("Order names must not contain spaces. Try /start ice-cream.".into())
+            Ok(StartOrder("ice-cream".into())),
+            "Spaces in orders are automatically replaced with -"
         );
         assert_eq!(
             parse_command("/start ice-cream", NO_ORDERS),
