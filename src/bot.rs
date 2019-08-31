@@ -64,7 +64,7 @@ impl Bot {
             // there are already orders for this conversation
             Some(conversation_orders) => {
                 if conversation_orders.add_order(creater, order_name.clone()) {
-                    CommandResult::success(format!("Order started for {}.\nUse /order {} <item> to order, /view_orders to view active orders and /end_order {} when done.", order_name, order_name, order_name))
+                    CommandResult::success(format!("Order started for {}.\nUse /order {} <item> to order, /view to show active orders and /end {} when done.", order_name, order_name, order_name))
                 } else {
                     CommandResult::failure(format!(
                         "There is already an order for {} in progress.",
@@ -78,7 +78,7 @@ impl Bot {
                 };
                 conversation_orders.add_order(creater, order_name.clone());
                 self.active_orders.insert(chat, conversation_orders);
-                CommandResult::success(format!("Order started for {}.\nUse /order <item> to order, /view_orders to view active orders, /end_order when done, or start another order.", order_name))
+                CommandResult::success(format!("Order started for {}.\nUse /order <item> to order, /view to show active orders, /end when done, or start another order.", order_name))
             }
         }
     }
@@ -101,7 +101,7 @@ impl Bot {
                 Err(msg) => CommandResult::failure(msg),
             },
             None => CommandResult::failure(
-                "There are no orders in progress. To start an order, use /start_order".into(),
+                "There are no orders in progress. To start an order, use /start <order name>.".into(),
             ),
         }
     }
@@ -126,14 +126,14 @@ impl Bot {
                     success: true,
                     reply_markup: Some(updated_order.generate_reply_markup()),
                     response: format!(
-                        "{}\nUse /order <item> to update your order and /end_order when done.\nYou can also tap on an existing item to update or cancel your order.",
+                        "{}\nUse /order <item> to update your order and /end when done.\nYou can also tap on an existing item to update or cancel your order.",
                         updated_order
                     ),
                 },
                 None => CommandResult::failure(format!("Order {} not found.", order_name)),
             },
             None => CommandResult::failure(
-                "There are no orders in progress. To start an order, use /start_order".into(),
+                "There are no orders in progress. To start an order, use /start <order name>.".into(),
             ),
         }
     }
@@ -150,7 +150,7 @@ impl Bot {
                 Some(updated_order) => CommandResult {
                     success: true,
                     response: format!(
-                        "{}\nUse /order <item> to order, and /end_order when done.\nYou can also tap on an existing item to update or cancel your order.",
+                        "{}\nUse /order <item> to order, and /end when done.\nYou can also tap on an existing item to update or cancel your order.",
                         updated_order
                     ),
                     reply_markup: Some(updated_order.generate_reply_markup()),
@@ -161,7 +161,7 @@ impl Bot {
                 )),
             },
             None => CommandResult::failure(
-                "There are no orders in progress. To start an order, use /start_order".into(),
+                "There are no orders in progress. To start an order, use /start <order name>.".into(),
             ),
         }
     }
@@ -171,10 +171,10 @@ impl Bot {
         match self.active_orders.get(chat) {
             Some(conversation_orders) => CommandResult {
                 success: true,
-                response: format!("{}\n\nUse /order <item> to order, /cancel to cancel your order and /end_order when done.\nYou can also tap on an existing item to update or cancel your order.", conversation_orders),
+                response: format!("{}\n\nUse /order <item> to order, /cancel to cancel your order and /end when done.\nYou can also tap on an existing item to update or cancel your order.", conversation_orders),
                 reply_markup: Some(conversation_orders.generate_reply_markup()),
             },
-            None => CommandResult::failure("There are no orders in progress. To start an order, use /start_order".into())
+            None => CommandResult::failure("There are no orders in progress. To start an order, use /start <order name>.".into())
         }
     }
 
@@ -183,7 +183,7 @@ impl Bot {
         chat: &MessageChat,
         user: User,
         data: &str,
-        is_message_output_of_view_orders: bool,
+        is_message_output_of_view: bool,
     ) -> (CommandResult, String) {
         let normalized_query = data.to_lowercase().trim().replace("@food_ordering_bot", "");
         if let Some(sep) = normalized_query.find(' ') {
@@ -214,7 +214,7 @@ impl Bot {
                 } else {
                     format!("Updated order for {} to {}.", order_name, item)
                 };
-                if is_message_output_of_view_orders {
+                if is_message_output_of_view {
                     // the response in res only contains info about the current order being edited
                     // since the message associated with the callback query contains all orders,
                     // we need to retrieve info about all orders to correctly edit it

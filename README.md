@@ -5,14 +5,14 @@
 Add `food_ordering_bot` to a group on Telegram, and use `/help` for a list of commands.
 
 ```sh
-/start_order <order name> - starts an order. For example, /start_order waffles.
-/view_orders - shows active orders.
+/start <order name> - starts an order. For example, /start waffles.
+/view - shows active orders.
 
 The following commands will ask for the order name, if there are multiple active orders.
 
 /order [order name] <item> - adds an item to an order, or replaces the previously chosen one.
-/cancel [order-name] - removes your previously selected item from an order.
-/end_order [order-name] - stops an order.
+/cancel [order name] - removes your previously selected item from an order.
+/end [order name] - stops an order.
 ```
 
 ## Building from source

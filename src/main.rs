@@ -51,15 +51,14 @@ fn main() {
                         data,
                         &bot.get_active_order_names(&message.chat),
                     ) {
-                        Ok(Start) => CommandResult::success("Use /start_order <order name> to start a new order, or /help for a full list of commands.".into()),
-                        Ok(Help) => CommandResult::success("/start_order <order name> - starts an order. For example, /start_order waffles.
-    /view_orders - shows active orders.
+                        Ok(Help) => CommandResult::success("/start <order name> - starts an order. For example, /start waffles.
+    /view - shows active orders.
 
     The following commands will ask for the order name, if there are multiple active orders.
 
     /order [order name] <item> - adds an item to an order, or replaces the previously chosen one.
     /cancel [order-name] - removes your previously selected item from an order.
-    /end_order [order-name] - stops an order.
+    /end [order-name] - stops an order.
 
     For feature requests, bug reports and source: https://github.com/Neurrone/food-ordering-bot".to_string()),
                         Ok(StartOrder(order_name)) => {
@@ -99,10 +98,10 @@ fn main() {
                 }
             },
             UpdateKind::CallbackQuery(query) => {
-                let is_original_command_output_of_view_orders = match query.message.clone().reply_to_message {
+                let is_original_command_output_of_view = match query.message.clone().reply_to_message {
                     Some(m) => if let MessageOrChannelPost::Message(message) = *m {
                         if let MessageKind::Text { ref data, .. } = message.kind {
-                            data.to_lowercase().trim() == "/view_orders"
+                            data.to_lowercase().trim() == "/view"
                         } else {
                             false
                         }
@@ -111,7 +110,7 @@ fn main() {
                     }
                     None => false
                 };
-                let (res, answer) = bot.handle_callback_query(&query.message.chat, query.from.clone(), &query.data, is_original_command_output_of_view_orders);
+                let (res, answer) = bot.handle_callback_query(&query.message.chat, query.from.clone(), &query.data, is_original_command_output_of_view);
                 api.spawn(query.answer(answer));
                 match res.reply_markup {
                     Some(ref markup) if res.success => api.spawn(

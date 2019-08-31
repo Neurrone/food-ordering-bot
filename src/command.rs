@@ -11,7 +11,6 @@ pub enum Command {
     /// view the current order
     ViewOrders,
     Help,
-    Start,
 }
 
 type ParseResult = std::result::Result<Command, String>;
@@ -31,29 +30,28 @@ pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
     let args = &tokens[1..];
     match command {
         "/help" => Ok(Help),
-        "/start" => Ok(Start),
-        "/start_order" => {
+        "/start" => {
             if args.len() == 1 {
                 Ok(StartOrder(args[0].to_string()))
             } else if args.is_empty() {
-                Err("Specify the name of the order. For example, /start_order waffles".into())
+                Err("Specify the name of the order. For example, /start waffles".into())
             } else {
                 Err(format!(
-                    "Order names must not contain spaces. Try /start_order {}",
+                    "Order names must not contain spaces. Try /start {}.",
                     args.join("-")
                 ))
             }
         }
-        "/end_order" => {
+        "/end" => {
             if active_orders.is_empty() {
                 Err(
-                    "There are no active orders. Start one by using /start_order <order name>"
+                    "There are no active orders. Start one by using /start <order name>."
                         .into(),
                 )
             } else if let Some(order_name) = infer_order_name(args, &active_orders) {
                 Ok(EndOrder(order_name))
             } else if args.is_empty() {
-                Err("Since there are multiple active orders, Specify the name of the order. For example, /end_order waffles".into())
+                Err("Since there are multiple active orders, Specify the name of the order. For example, /end waffles".into())
             } else {
                 Err(format!("Order {} not found.", args[0]))
             }
@@ -61,7 +59,7 @@ pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
         "/order" => {
             if active_orders.is_empty() {
                 Err(
-                    "There are no active orders. Start one by using /start_order <order name>"
+                    "There are no active orders. Start one by using /start <order name>."
                         .into(),
                 )
             } else if active_orders.len() == 1 {
@@ -90,7 +88,7 @@ pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
         "/cancel" => {
             if active_orders.is_empty() {
                 Err(
-                    "There are no active orders. Start one by using /start_order <order name>"
+                    "There are no active orders. Start one by using /start <order name>."
                         .into(),
                 )
             } else if let Some(order_name) = infer_order_name(args, &active_orders) {
@@ -101,7 +99,7 @@ pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
                 Err(format!("Order {} not found.", args[0]))
             }
         }
-        "/view_orders" => Ok(ViewOrders),
+        "/view" => Ok(ViewOrders),
         _ => Err("Use /help for a list of recognized commands.".to_string()),
     }
 }
@@ -134,79 +132,79 @@ mod tests {
     }
 
     #[test]
-    fn parse_start_order() {
+    fn parse_start() {
         assert_eq!(
-            parse_command("/start_order ", NO_ORDERS),
-            Err("Specify the name of the order. For example, /start_order waffles".into())
+            parse_command("/start ", NO_ORDERS),
+            Err("Specify the name of the order. For example, /start waffles".into())
         );
         assert_eq!(
-            parse_command("/start_order waffles", NO_ORDERS),
+            parse_command("/start waffles", NO_ORDERS),
             Ok(StartOrder("waffles".into()))
         );
         assert_eq!(
-            parse_command("/Start_order WAFFLES ", NO_ORDERS),
-            parse_command("/start_order waffles", NO_ORDERS),
+            parse_command("/Start WAFFLES ", NO_ORDERS),
+            parse_command("/start waffles", NO_ORDERS),
             "whitespace and capitalization are ignored"
         );
         assert_eq!(
-            parse_command("/start_order waffles @food_ordering_bot", NO_ORDERS),
-            parse_command("/start_order waffles", NO_ORDERS),
+            parse_command("/start waffles @food_ordering_bot", NO_ORDERS),
+            parse_command("/start waffles", NO_ORDERS),
             "@mentions are ignored"
         );
         assert_eq!(
-            parse_command("/start_order ice cream", NO_ORDERS),
-            Err("Order names must not contain spaces. Try /start_order ice-cream".into())
+            parse_command("/start ice cream", NO_ORDERS),
+            Err("Order names must not contain spaces. Try /start ice-cream.".into())
         );
         assert_eq!(
-            parse_command("/start_order ice-cream", NO_ORDERS),
+            parse_command("/start ice-cream", NO_ORDERS),
             Ok(StartOrder("ice-cream".into())),
             "order names may contain -"
         );
     }
 
     #[test]
-    fn parse_end_order() {
+    fn parse_end() {
         assert_eq!(
-            parse_command("/end_order", NO_ORDERS),
-            Err("There are no active orders. Start one by using /start_order <order name>".into())
+            parse_command("/end", NO_ORDERS),
+            Err("There are no active orders. Start one by using /start <order name>.".into())
         );
 
         assert_eq!(
-            parse_command("/end_order waffles", WAFFLES),
+            parse_command("/end waffles", WAFFLES),
             Ok(EndOrder("waffles".into()))
         );
         assert_eq!(
-            parse_command("/end_order", WAFFLES),
+            parse_command("/end", WAFFLES),
             Ok(EndOrder("waffles".into())),
             "order name may be omitted if there is only 1 active order"
         );
         assert_eq!(
-            parse_command("/end_order ice-cream", WAFFLES),
+            parse_command("/end ice-cream", WAFFLES),
             Err("Order ice-cream not found.".into())
         );
 
         // multiple active orders
-        assert_eq!(parse_command("/end_order", WAFFLES_AND_PIZZA), Err("Since there are multiple active orders, Specify the name of the order. For example, /end_order waffles".into()));
+        assert_eq!(parse_command("/end", WAFFLES_AND_PIZZA), Err("Since there are multiple active orders, Specify the name of the order. For example, /end waffles".into()));
         assert_eq!(
-            parse_command("/end_order waffles", WAFFLES_AND_PIZZA),
+            parse_command("/end waffles", WAFFLES_AND_PIZZA),
             Ok(EndOrder("waffles".into()))
         );
         assert_eq!(
-            parse_command("/end_order pizza", WAFFLES_AND_PIZZA),
+            parse_command("/end pizza", WAFFLES_AND_PIZZA),
             Ok(EndOrder("pizza".into()))
         );
 
         assert_eq!(
-            parse_command("/End_order Waffles ", WAFFLES),
-            parse_command("/end_order waffles", WAFFLES),
+            parse_command("/End Waffles ", WAFFLES),
+            parse_command("/end waffles", WAFFLES),
             "whitespace and capitalization are ignored"
         );
         assert_eq!(
-            parse_command("/end_order Waffles", NO_ORDERS),
-            Err("There are no active orders. Start one by using /start_order <order name>".into())
+            parse_command("/end Waffles", NO_ORDERS),
+            Err("There are no active orders. Start one by using /start <order name>.".into())
         );
         assert_eq!(
-            parse_command("/end_order Waffles", PIZZA),
+            parse_command("/end Waffles", PIZZA),
             Err("Order waffles not found.".into())
         );
     }
@@ -216,15 +214,15 @@ mod tests {
         // no active orders
         assert_eq!(
             parse_command("/order", NO_ORDERS),
-            Err("There are no active orders. Start one by using /start_order <order name>".into())
+            Err("There are no active orders. Start one by using /start <order name>.".into())
         );
         assert_eq!(
             parse_command("/order chocolate", NO_ORDERS),
-            Err("There are no active orders. Start one by using /start_order <order name>".into())
+            Err("There are no active orders. Start one by using /start <order name>.".into())
         );
         assert_eq!(
             parse_command("/order waffles chocolate", NO_ORDERS),
-            Err("There are no active orders. Start one by using /start_order <order name>".into())
+            Err("There are no active orders. Start one by using /start <order name>.".into())
         );
 
         // one active order
@@ -291,7 +289,7 @@ mod tests {
     fn parse_cancel() {
         assert_eq!(
             parse_command("/cancel", NO_ORDERS),
-            Err("There are no active orders. Start one by using /start_order <order name>".into())
+            Err("There are no active orders. Start one by using /start <order name>.".into())
         );
         assert_eq!(
             parse_command("/cancel", NO_ORDERS),
