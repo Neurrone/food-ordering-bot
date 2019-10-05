@@ -101,7 +101,8 @@ impl Bot {
                 Err(msg) => CommandResult::failure(msg),
             },
             None => CommandResult::failure(
-                "There are no orders in progress. To start an order, use /start <order name>.".into(),
+                "There are no orders in progress. To start an order, use /start <order name>."
+                    .into(),
             ),
         }
     }

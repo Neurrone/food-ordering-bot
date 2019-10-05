@@ -32,18 +32,9 @@ impl ConversationOrders {
 
     /// Removes or ends an order for this conversation, returning the removed order on success
     /// Only the creater of the order may remove it
-    pub fn remove_order(&mut self, user: &User, order_name: &str) -> Result<Order, String> {
+    pub fn remove_order(&mut self, _user: &User, order_name: &str) -> Result<Order, String> {
         match self.orders.get(order_name) {
-            Some(order) => {
-                if order.owner.id == user.id {
-                    Ok(self.orders.remove(order_name).unwrap())
-                } else {
-                    Err(format!(
-                        "Only {} may end their order for {}.",
-                        order.owner.first_name, order_name
-                    ))
-                }
-            }
+            Some(_order) => Ok(self.orders.remove(order_name).unwrap()),
             None => Err(format!("Order {} not found.", order_name)),
         }
     }

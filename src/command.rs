@@ -42,10 +42,7 @@ pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
         }
         "/end" => {
             if active_orders.is_empty() {
-                Err(
-                    "There are no active orders. Start one by using /start <order name>."
-                        .into(),
-                )
+                Err("There are no active orders. Start one by using /start <order name>.".into())
             } else if let Some(order_name) = infer_order_name(args, &active_orders) {
                 Ok(EndOrder(order_name))
             } else if args.is_empty() {
@@ -56,10 +53,7 @@ pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
         }
         "/order" => {
             if active_orders.is_empty() {
-                Err(
-                    "There are no active orders. Start one by using /start <order name>."
-                        .into(),
-                )
+                Err("There are no active orders. Start one by using /start <order name>.".into())
             } else if active_orders.len() == 1 {
                 if args.is_empty() {
                     Err("Specify the name of the item you wish to order. For example, /order chocolate".into())
@@ -85,10 +79,7 @@ pub fn parse_command(message: &str, active_orders: &[&str]) -> ParseResult {
         }
         "/cancel" => {
             if active_orders.is_empty() {
-                Err(
-                    "There are no active orders. Start one by using /start <order name>."
-                        .into(),
-                )
+                Err("There are no active orders. Start one by using /start <order name>.".into())
             } else if let Some(order_name) = infer_order_name(args, &active_orders) {
                 Ok(RemoveItem(order_name))
             } else if args.is_empty() {
